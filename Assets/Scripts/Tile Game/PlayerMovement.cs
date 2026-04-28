@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
@@ -10,35 +11,28 @@ public class PlayerMovement : MonoBehaviour
     private int currentY;
     private int scope = 2;
 
+    private bool isMoving = false;
+    private float moveSpeed = 5f;
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
-        //animator.speed = 0f;
-
+        animator.speed = 0f;
+        Debug.Log(animator.speed);
         var findGo = GameObject.FindWithTag("Map");
         stage = findGo.GetComponent<Stage>();
     }
 
     private void Update()
     {
+        if (isMoving) return; // 이동 중엔 입력 무시
+
         var direction = Sides.None;
 
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            direction = Sides.Top;
-        }
-        else if (Input.GetKeyDown(KeyCode.S))
-        {
-            direction = Sides.Bottom;
-        }
-        else if (Input.GetKeyDown(KeyCode.D))
-        {
-            direction = Sides.Right;
-        }
-        else if (Input.GetKeyDown(KeyCode.A))
-        {
-            direction = Sides.Left;
-        }
+        if (Input.GetKeyDown(KeyCode.W)) direction = Sides.Top;
+        else if (Input.GetKeyDown(KeyCode.S)) direction = Sides.Bottom;
+        else if (Input.GetKeyDown(KeyCode.D)) direction = Sides.Right;
+        else if (Input.GetKeyDown(KeyCode.A)) direction = Sides.Left;
 
         if (direction != Sides.None)
         {
@@ -50,7 +44,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    public void MoveTo(int tileId)
+    public void InitPos(int tileId)
     {
         currentTileId = tileId;
         currentX = tileId % stage.Map.cols;
@@ -59,6 +53,38 @@ public class PlayerMovement : MonoBehaviour
         transform.position = stage.GetTilePos(currentTileId);
 
         CheckVisit(tileId);
+    }
+
+    public void MoveTo(int tileId)
+    {
+        currentTileId = tileId;
+        currentX = tileId % stage.Map.cols;
+        currentY = tileId / stage.Map.cols;
+
+        Vector3 targetPos = stage.GetTilePos(currentTileId);
+        StartCoroutine(MoveCoroutine(targetPos)); // Lerp 이동 시작
+
+        CheckVisit(tileId);
+    }
+
+    private IEnumerator MoveCoroutine(Vector3 targetPos)
+    {
+        isMoving = true;
+        animator.speed = 1f;
+        Vector3 startPos = transform.position;
+        float elapsed = 0f;
+        float duration = 1f / moveSpeed;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transform.position = Vector3.Lerp(startPos, targetPos, elapsed / duration);
+            yield return null;
+        }
+
+        transform.position = targetPos; // 정확한 위치로 보정
+        isMoving = false;
+        animator.speed = 0f;
     }
 
     public void CheckVisit(int tileId)

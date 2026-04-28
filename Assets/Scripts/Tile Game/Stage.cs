@@ -81,7 +81,7 @@ public class Stage : MonoBehaviour
         }
 
         player = Instantiate(playerPrefab);
-        player.MoveTo(map.startTile.id);
+        player.InitPos(map.startTile.id);
     }
 
     private void CreateGrid()
