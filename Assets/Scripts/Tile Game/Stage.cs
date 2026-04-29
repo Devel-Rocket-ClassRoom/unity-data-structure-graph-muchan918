@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Stage : MonoBehaviour
@@ -8,8 +9,13 @@ public class Stage : MonoBehaviour
     public PlayerMovement playerPrefab;
     private PlayerMovement player;
 
+    private TileSearch tileSearch;
+    private TileSearch predictSearch;
+
     public int mapWidth = 20;
     public int mapHeight = 20;
+
+    public int visitRadius = 10;
 
     private float startX;
     private float startY;
@@ -51,19 +57,40 @@ public class Stage : MonoBehaviour
 
         if (lastHoveredTileId != -1)
         {
-            tileObjs[lastHoveredTileId].GetComponent<SpriteRenderer>().color = Color.white;
+            //tileObjs[lastHoveredTileId].GetComponent<SpriteRenderer>().color = Color.white;
         }
 
         int tileId = ScreenPosToTileId(Input.mousePosition);
         if (tileId != -1)
         {
-            tileObjs[tileId].GetComponent<SpriteRenderer>().color = Color.red;
+            if (lastHoveredTileId != tileId)
+            {
+                if (predictSearch.path != null)
+                    ChangePathColor(predictSearch.path, Color.white);
+
+                if (predictSearch.AStar(map.tiles[player.CurrentTileId], map.tiles[tileId]))
+                {
+                    ChangePathColor(predictSearch.path, Color.green);
+                }
+
+            }
+
+            //tileObjs[tileId].GetComponent<SpriteRenderer>().color = Color.red;
             lastHoveredTileId = tileId;
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                Debug.Log($"클릭한 타일 id = {tileId}");
+                player.MoveToTargetTile(tileSearch, tileId);
+            }
         }
     }
 
     private void ResetStage()
     {
+        tileSearch = new TileSearch();
+        predictSearch = new TileSearch();
+
         map = new Map();
         map.Init(mapHeight, mapWidth);
         //map.CreateIsland(coastErodePercent, coastErodeIterations);
@@ -71,6 +98,30 @@ public class Stage : MonoBehaviour
         treePercent, hillPercent, mountainPercent, townPercent, monsterPercent);
         CreateGrid();
         CreatePlayer(); // 여기서 오픈해주는걸 필요함
+
+        tileSearch.Init(map);
+        predictSearch.Init(map);
+        while (true)
+        {
+            if (tileSearch.AStar(map.startTile, map.castleTile))
+            {
+                Debug.Log("경로 이어짐");
+                break;
+            }
+            else
+            {
+                Debug.Log("경로 안이어짐");
+                map = new Map();
+                map.Init(mapHeight, mapWidth);
+                map.CreateIsland(erodePercent, erodeIterations, lakePercent,
+                treePercent, hillPercent, mountainPercent, townPercent, monsterPercent);
+                CreateGrid();
+                CreatePlayer(); // 여기서 오픈해주는걸 필요함
+
+                predictSearch.Init(map);
+                tileSearch.Init(map);
+            }
+        }
     }
 
     private void CreatePlayer()
@@ -121,9 +172,6 @@ public class Stage : MonoBehaviour
         var tileGo = tileObjs[tileId]; // 게임 오브젝트
         var ren = tileGo.GetComponent<SpriteRenderer>();
 
-        tile.UpdateAutoFowTileId();
-
-        // 여기서 분기해서 fow 설정
         if (tile.isVisited)
         {
             if (tile.autoTileId != (int)TileTypes.Empty)
@@ -138,6 +186,83 @@ public class Stage : MonoBehaviour
         else
         {
             ren.sprite = isFowSprites[tile.autoFowTileId];
+        }
+
+        tile.UpdateAutoFowTileId();
+
+        // 여기서 분기해서 fow 설정
+        // if (tile.isVisited)
+        // {
+        //     if (tile.autoTileId != (int)TileTypes.Empty)
+        //     {
+        //         ren.sprite = islandSprites[tile.autoTileId];
+        //     }
+        //     else
+        //     {
+        //         ren.sprite = null;
+        //     }
+        // }
+        // else
+        // {
+        //     ren.sprite = isFowSprites[tile.autoFowTileId];
+        // }
+    }
+
+
+    public void OnTileVisited(int tileId)
+    {
+        OnTileVisited(map.tiles[tileId]);
+    }
+
+    public void OnTileVisited(Tile tile)
+    {
+        int centerX = tile.id % mapWidth;
+        int centerY = tile.id / mapWidth;
+
+        for (int i = -visitRadius; i <= visitRadius; i++)
+        {
+            for (int j = -visitRadius; j <= visitRadius; j++)
+            {
+                int x = centerX + j;
+                int y = centerY + i;
+                if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight)
+                    continue;
+
+                int id = y * mapWidth + x;
+                map.tiles[id].isVisited = true;
+                DecorateTile(id);
+
+            }
+        }
+
+        var radius = visitRadius + 1;
+
+        for (int i = -radius; i <= radius; i++)
+        {
+            for (int j = -radius; j <= radius; j++)
+            {
+                if (i == radius || i == -radius || j == radius || j == -radius)
+                {
+                    int x = centerX + j;
+                    int y = centerY + i;
+                    if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight)
+                        continue;
+                    int id = y * mapWidth + x;
+
+
+                    // 여기 수정
+                    map.tiles[id].UpdateAutoFowTileId();
+                    DecorateTile(id);
+                }
+            }
+        }
+    }
+
+    public void ChangePathColor(List<Tile> path, Color color)
+    {
+        foreach (var p in path)
+        {
+            tileObjs[p.id].GetComponent<SpriteRenderer>().color = color;
         }
     }
 

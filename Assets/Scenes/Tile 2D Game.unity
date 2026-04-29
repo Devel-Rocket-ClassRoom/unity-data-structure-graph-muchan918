@@ -167,6 +167,7 @@ MonoBehaviour:
   playerPrefab: {fileID: 1404456595435304714, guid: 65a956441c40a9c48adbfa6843a6a3a4, type: 3}
   mapWidth: 20
   mapHeight: 20
+  visitRadius: 20
   erodePercent: 0.5
   erodeIterations: 2
   lakePercent: 0.1

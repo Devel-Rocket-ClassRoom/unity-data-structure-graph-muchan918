@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
@@ -7,12 +8,13 @@ public class PlayerMovement : MonoBehaviour
     private Animator animator;
 
     private int currentTileId;
-    private int currentX;
-    private int currentY;
-    private int scope = 2;
+    public int CurrentTileId => currentTileId;
+    //private int scope = 2;
 
     private bool isMoving = false;
-    private float moveSpeed = 5f;
+    private float moveSpeed = 2f;
+    private Coroutine coMove = null;
+    private int pathWeight;
 
     private void Awake()
     {
@@ -47,80 +49,117 @@ public class PlayerMovement : MonoBehaviour
     public void InitPos(int tileId)
     {
         currentTileId = tileId;
-        currentX = tileId % stage.Map.cols;
-        currentY = tileId / stage.Map.cols;
 
         transform.position = stage.GetTilePos(currentTileId);
 
-        CheckVisit(tileId);
+        stage.OnTileVisited(tileId);
+        //CheckVisit(tileId);
+    }
+
+    public void MoveToTargetTile(TileSearch search, int targetTileId)
+    {
+        if (isMoving) return;
+
+        stage.ChangePathColor(search.path, Color.white);
+        pathWeight = 0;
+
+        if (search.AStar(stage.Map.tiles[currentTileId], stage.Map.tiles[targetTileId]))
+        {
+            if (coMove != null)
+            {
+                StopCoroutine(coMove);
+                coMove = null;
+            }
+
+            coMove = StartCoroutine(MovePathCoroutine(search.path));
+        }
+        else
+        {
+            Debug.Log("갈 수 없음");
+        }
+    }
+
+    private IEnumerator MovePathCoroutine(List<Tile> path)
+    {
+        for (int i = 1; i < path.Count; i++)
+        {
+            pathWeight += path[i].weight;
+            yield return MoveCoroutine(path[i].id);
+        }
+        stage.ChangePathColor(path, Color.blue);
+        Debug.Log($"경로 가중치 합: {pathWeight}");
     }
 
     public void MoveTo(int tileId)
     {
-        currentTileId = tileId;
-        currentX = tileId % stage.Map.cols;
-        currentY = tileId / stage.Map.cols;
+        if (coMove != null)
+        {
+            StopCoroutine(coMove);
+            coMove = null;
+        }
 
-        Vector3 targetPos = stage.GetTilePos(currentTileId);
-        StartCoroutine(MoveCoroutine(targetPos)); // Lerp 이동 시작
-
-        CheckVisit(tileId);
+        coMove = StartCoroutine(MoveCoroutine(tileId)); // Lerp 이동 시작
+        //CheckVisit(tileId);
     }
 
-    private IEnumerator MoveCoroutine(Vector3 targetPos)
+    private IEnumerator MoveCoroutine(int tileId)
     {
         isMoving = true;
-        animator.speed = 1f;
+        animator.speed = 2f;
         Vector3 startPos = transform.position;
+        Vector3 endPos = stage.GetTilePos(tileId);
         float elapsed = 0f;
         float duration = 1f / moveSpeed;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            transform.position = Vector3.Lerp(startPos, targetPos, elapsed / duration);
+            transform.position = Vector3.Lerp(startPos, endPos, elapsed / duration);
             yield return null;
         }
 
-        transform.position = targetPos; // 정확한 위치로 보정
+        transform.position = endPos; // 정확한 위치로 보정
+        currentTileId = tileId;
         isMoving = false;
+        coMove = null;
         animator.speed = 0f;
+        stage.OnTileVisited(tileId);
     }
 
-    public void CheckVisit(int tileId)
-    {
-        for (int y = currentY - scope; y <= currentY + scope; y++)
-        {
-            for (int x = currentX - scope; x <= currentX + scope; x++)
-            {
-                if (x < 0 || x >= stage.Map.cols || y < 0 || y >= stage.Map.rows) continue;
+    // public void CheckVisit(int tileId)
+    // {
+    //     for (int y = currentY - scope; y <= currentY + scope; y++)
+    //     {
+    //         for (int x = currentX - scope; x <= currentX + scope; x++)
+    //         {
+    //             if (x < 0 || x >= stage.Map.cols || y < 0 || y >= stage.Map.rows) continue;
 
-                int id = y * stage.Map.cols + x;
-                stage.Map.tiles[id].isVisited = true;
-            }
-        }
+    //             int id = y * stage.Map.cols + x;
+    //             stage.Map.tiles[id].isVisited = true;
+    //         }
+    //     }
 
-        for (int y = currentY - scope; y <= currentY + scope; y++)
-        {
-            for (int x = currentX - scope; x <= currentX + scope; x++)
-            {
-                if (x < 0 || x >= stage.Map.cols || y < 0 || y >= stage.Map.rows) continue;
+    //     for (int y = currentY - scope; y <= currentY + scope; y++)
+    //     {
+    //         for (int x = currentX - scope; x <= currentX + scope; x++)
+    //         {
+    //             if (x < 0 || x >= stage.Map.cols || y < 0 || y >= stage.Map.rows) continue;
 
-                int id = y * stage.Map.cols + x;
+    //             int id = y * stage.Map.cols + x;
 
-                for (int i = 0; i < stage.Map.tiles[id].adjacents.Length; i++)
-                {
-                    if (stage.Map.tiles[id].adjacents[i] != null)
-                    {
-                        stage.DecorateTile(stage.Map.tiles[id].adjacents[i].id);
-                    }
-                }
-            }
-        }
-    }
+    //             for (int i = 0; i < stage.Map.tiles[id].adjacents.Length; i++)
+    //             {
+    //                 if (stage.Map.tiles[id].adjacents[i] != null)
+    //                 {
+    //                     stage.DecorateTile(stage.Map.tiles[id].adjacents[i].id);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     public void MoveTo(int x, int y)
     {
-
+        MoveTo(x * stage.mapWidth + y);
     }
 }

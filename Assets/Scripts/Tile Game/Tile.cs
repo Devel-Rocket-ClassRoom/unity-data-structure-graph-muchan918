@@ -18,6 +18,9 @@ public enum Sides
 public class Tile
 {
     public int id;
+    public int weight = (int)TileWeight.Grass;
+    public Tile previous = null;
+
     public Tile[] adjacents = new Tile[4];
 
     public int autoTileId;
@@ -71,12 +74,15 @@ public class Tile
 
     public void ClearAdjacents()
     {
+        autoTileId = (int)TileTypes.Empty;
+
         for (int i = 0; i < adjacents.Length; i++)
         {
             if (adjacents[i] == null) continue;
 
             adjacents[i].RemoveAdjacents(this);
             adjacents[i] = null;
+            //adjacents[i].UpdateAutoTileId();
         }
 
         UpdateAutoTileId();

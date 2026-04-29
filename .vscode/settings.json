@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "unity-data-structure-graph-muchan918.slnx"
+    "dotnet.defaultSolution": "unity-data-structure-graph.slnx"
 }

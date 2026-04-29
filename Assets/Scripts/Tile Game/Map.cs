@@ -14,6 +14,17 @@ public enum TileTypes
     Monster,
 }
 
+public enum TileWeight
+{
+    Grass = 1,
+    Tree = 2,
+    Hills = 4,
+    Mountain = 100,
+    Towns = 2,
+    Castle = 1,
+    Monster = 3,
+}
+
 // 그래프 클래스 역할과 비슷
 public class Map
 {
@@ -72,6 +83,7 @@ public class Map
         for (int i = 0; i < tiles.Length; i++)
         {
             tiles[i].UpdateAutoTileId();
+            tiles[i].UpdateAutoFowTileId();
         }
     }
 
@@ -98,6 +110,24 @@ public class Map
             }
 
             tiles[i].autoTileId = (int)tileTypes;
+        }
+    }
+
+    public void DecorateTiles(Tile[] tiles, float percent, TileTypes tileTypes, TileWeight tileWeight)
+    {
+        ShuffleTiles(tiles);
+
+        int total = Mathf.FloorToInt(tiles.Length * percent);
+        // Debug.Log($"{tileTypes}: {total}/{tiles.Length}");
+        for (int i = 0; i < total; i++)
+        {
+            if (tileTypes == TileTypes.Empty)
+            {
+                tiles[i].ClearAdjacents();
+            }
+
+            tiles[i].autoTileId = (int)tileTypes;
+            tiles[i].weight = (int)tileWeight;
         }
     }
 
@@ -130,19 +160,28 @@ public class Map
         }
 
         DecorateTiles(LandTiles, lakePercent, TileTypes.Empty);
-        DecorateTiles(LandTiles, treePercent, TileTypes.Tree);
-        DecorateTiles(LandTiles, hillPercent, TileTypes.Hill);
-        DecorateTiles(LandTiles, mountainPercent, TileTypes.Mountain);
-        DecorateTiles(LandTiles, townPercent, TileTypes.Towns);
-        DecorateTiles(LandTiles, monsterPercent, TileTypes.Monster);
+        DecorateTiles(LandTiles, treePercent, TileTypes.Tree, TileWeight.Tree);
+        DecorateTiles(LandTiles, hillPercent, TileTypes.Hill, TileWeight.Hills);
+        DecorateTiles(LandTiles, mountainPercent, TileTypes.Mountain, TileWeight.Mountain);
+        DecorateTiles(LandTiles, townPercent, TileTypes.Towns, TileWeight.Towns);
+        DecorateTiles(LandTiles, monsterPercent, TileTypes.Monster, TileWeight.Monster);
 
         var towns = tiles.Where(x => x.autoTileId == (int)TileTypes.Towns).ToArray();
         ShuffleTiles(towns);
 
         startTile = towns[0];
         castleTile = towns[1];
+
         castleTile.autoTileId = (int)TileTypes.Castle;
 
         return true;
+    }
+
+    public void ResetTilePrevious()
+    {
+        foreach (var tile in tiles)
+        {
+            tile.previous = null;
+        }
     }
 }
